@@ -30,7 +30,7 @@ def AutoRegress(train, test):
     history = [history[i] for i in range(len(history))]
     predictions = list()
     for t in range(len(test)):
-    	length = len(history)-t
+    	length = len(history)
     	lag = [history[i] for i in range(length-window,length)]
     	yhat = coef[0]
     	for d in range(window):
@@ -57,9 +57,8 @@ def inverse_difference(history, yhat, interval):
 	return yhat + history[-interval]
 
 def arima(data, interval):
-    n = 20
+    n = 10
     differenced = difference(data, interval)
-    print(differenced)
     # fit model
     model = ARIMA(differenced, order=(n,0 ,1))
     model_fit = model.fit(disp=0)
@@ -68,28 +67,32 @@ def arima(data, interval):
     start_index = len(differenced)
     end_index = start_index + n
     forecast = model_fit.predict(start=start_index, end=end_index)
-    print("SALUT")
-    # invert the differenced forecast to something usable
+        # invert the differenced forecast to something usable
     history = data
     day = 1
     for yhat in forecast:
     	inverted = inverse_difference(history, yhat, interval)
     	print('minute %d: %f' % (day, inverted))
-    	history.append(inverted)
+    	np.append(history,inverted)
     	day += 1
+    error = mean_squared_error(test[0:n], history[len(history)-n:])
+    print('Test MSE: %.3f' % error)
     return history[len(history)-n:]
 
 def Affichage(predictions, test):
     # plot
     pyplot.plot(test[:])
     pyplot.plot(predictions, color='red')
+    pyplot.legend(('expected','predicted'))
+    pyplot.title('ARIMA : Forecast of moisture on 10 iteration of 5 minutes')
     pyplot.show()
 
 name = 'ceres-chirp-right500h.csv'
 train, test = lecture(name)
-predictions,eval = AutoRegress(train,test)
-Affichage(predictions, eval)
+
+#predictions,eval = AutoRegress(train,test)
+#Affichage(predictions, eval)
 
 interval = int(60*24/5) #nomber of 5 minute in one day
-#predictions = arima(train,interval)
-#Affichage(predictions, test[0:7])
+predictions = arima(train,interval)
+Affichage(predictions, test[0:10])
