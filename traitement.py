@@ -53,7 +53,7 @@ class Traitement(object):
             df.iloc[int(i),6] = j*30
             j = j + 1
         return df
-    
+
     def arrosageHist(self,df,pot):
         df['Arrosage'] = df.index
         df['TAfterArrosage'] = df.index
@@ -95,4 +95,49 @@ class Traitement(object):
                 print(i)
             else:
                 i = i + 48
+        return df
+
+    def pure(self,df):
+        dfPure = df.loc[df['TAfterArrosage'] <= 30 ]
+        nligne = df.shape[0]
+        i=0
+        j= 47
+        while(j < nligne):
+            dfPure.iloc[i,2] = np.mean(df.iloc[range(j-47,j-24),2].values)
+            dfPure.iloc[i+1,2] = np.mean(df.iloc[range(j-24,j),2].values)
+            if (j + 48 <=nligne):
+                dfPure.iloc[i+1,3] = dfPure.iloc[i+2,1]-dfPure.iloc[i+1,1]
+            i = i +2
+            j = j + 48
+        return dfPure
+
+    def prediction(self,reg,start,highTemp,lowTemp,purpose):
+        val = [5,10,15,20,25,30,35,40]
+        resBest = 1000
+        evalBest = []
+        aroBest = 0
+        for el in val:
+            res = np.zeros(49)
+            res[0] = start
+            res[1] = res[0] + reg.predict([[res[0],highTemp,el]])[0]
+            for i in range(2,49):
+                if i <= 24:
+                    res[i] = res[i-1] + reg.predict([[res[i-1],highTemp,0]])[0]
+                else:
+                    res[i] = res[i-1] + reg.predict([[res[i-1],lowTemp,0]])[0]
+            if abs(resBest-purpose) > abs(res[48]-purpose):
+                resBest = res[48]
+                evalBest = res
+                aroBest = el
+            print(el, res[48])
+        return evalBest, aroBest
+
+    def preparation(self, name, init):
+        df = pd.read_csv(name)
+        #Création des deux autres colonnes
+        df = self.ajoutData(df)
+        df = self.arrosageHist(df,1)
+        df = self.eliminateNaNValue(df,init)
+        #Delete the data that are not inside a loop of one day
+        df.drop(df.index[range(0,init)],axis = 0,inplace = True)
         return df
