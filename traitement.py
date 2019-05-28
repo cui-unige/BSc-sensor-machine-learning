@@ -34,6 +34,14 @@ class Traitement(object):
 
         return df
 
+    def addDay(self,df, init):
+        df['index'] = df.index
+        nligne = df.shape[0]
+        position = df.shape[1]-1
+        for i in range(nligne):
+            df.iloc[i,position] = (i-init)//48 + 1
+        return df
+
     def arrosage(self,df):
         df['Arrosage'] = df.index
         df['TAfterArrosage'] = df.index
@@ -97,7 +105,6 @@ class Traitement(object):
             if df.iloc[range(i,i+48),:].isnull().values.any():
                 df.drop(df.index[range(i,i+48)],axis = 0,inplace = True)
                 nligne = df.shape[0]
-                print(i)
             else:
                 i = i + 48
         return df
@@ -137,35 +144,40 @@ class Traitement(object):
             print(el, res[48])
         return evalBest, aroBest
 
-    def prediction3(self,regAro, regEva, regSta,limite,start,highTemp,lowTemp,purpose):
-        val = [5,10,15,20,25,30,35,40]
+    def prediction3(self,regAro, regEva, regSta,limite,start,highTemp,lowTemp,purpose,day):
+        val = [0,5,10,15,20,25,30,35,40,45,50]
         resBest = 1000
         evalBest = []
         aroBest = 0
         for el in val:
-            res = np.zeros(49)
-            res[0] = start
-            res[1] = res[0] + regAro.predict([[res[0],el]])[0]
-            reg = regEva
-            for i in range(2,49):
-                if i == limite//30:
-                    reg = regSta
-                if i <= 24:
-                    res[i] = res[i-1] + reg.predict([[res[i-1],highTemp,i*30]])[0]
-                else:
-                    res[i] = res[i-1] + reg.predict([[res[i-1],lowTemp,i*30]])[0]
+            res = self.calcul(el,regAro, regEva, regSta,limite,start,highTemp,lowTemp,purpose,day)
             if abs(resBest-purpose) > abs(res[48]-purpose):
                 resBest = res[48]
                 evalBest = res
                 aroBest = el
-            print(el, res[48])
+            #print(el, res[48])
         return evalBest, aroBest
+
+    def calcul(self,aro,regAro,regEva,regSta,limite,start,highTemp,lowTemp,purpose,day):
+        res = np.zeros(49)
+        res[0] = start
+        res[1] = res[0] + regAro.predict([[res[0],aro,day]])[0]
+        reg = regEva
+        for i in range(2,49):
+            if i == limite//30:
+                reg = regSta
+            if i <= 24:
+                res[i] = res[i-1] + reg.predict([[res[i-1],highTemp,i*30,aro,day]])[0]
+            else:
+                res[i] = res[i-1] + reg.predict([[res[i-1],lowTemp,i*30,aro,day]])[0]
+        return res
 
     def preparation(self, name, init):
         df = pd.read_csv(name)
         #Création des deux autres colonnes
         df = self.ajoutData(df)
         df = self.arrosageHist(df,1)
+        df = self.addDay(df,init)
         df = self.eliminateNaNValue(df,init)
         #Delete the data that are not inside a loop of one day
         df.drop(df.index[range(0,init)],axis = 0,inplace = True)

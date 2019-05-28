@@ -7,7 +7,11 @@ import pandas as pd
 import datetime
 from traitement import Traitement
 import random
+import sys
 
+# print (sys.argv[0]) #Affiche monfichier.py
+# start = float(sys.argv[1])
+# end = float(sys.argv[2])
 
 t= Traitement()
 
@@ -22,7 +26,7 @@ nColumn = df.shape[1]
 
 
 #Separation of the data in 3 parts
-limite = 450
+limite = 270
 dfArrosage = df.loc[df['TAfterArrosage'] == 0]
 tmp = df.loc[df['TAfterArrosage'] > 0]
 dfStabilisation = df.loc[df['TAfterArrosage'] > limite]
@@ -34,31 +38,39 @@ reg.fit(df[['mean_moisture-percent','mean_temperature','Arrosage']],df.moistureA
 
 # Regression on the 3 parts
 regLinearAro = linear_model.LinearRegression()
-regLinearAro.fit(dfArrosage[['mean_moisture-percent','Arrosage']],dfArrosage.moistureAdd)
-regLinearAro.intercept_
-regLinearAro.coef_
+regLinearAro.fit(dfArrosage[['mean_moisture-percent','Arrosage','index']],dfArrosage.moistureAdd)
 
 regLinearEva = linear_model.LinearRegression()
-regLinearEva.fit(dfEvaporation[['mean_moisture-percent','mean_temperature','TAfterArrosage']],dfEvaporation.moistureAdd)
-regLinearEva.intercept_
-regLinearEva.coef_
+regLinearEva.fit(dfEvaporation[['mean_moisture-percent','mean_temperature','TAfterArrosage','ArrosageHist','index']],dfEvaporation.moistureAdd)
 
 regLinearSta = linear_model.LinearRegression()
-regLinearSta.fit(dfStabilisation[['mean_moisture-percent','mean_temperature','TAfterArrosage']],dfStabilisation.moistureAdd)
-regLinearSta.intercept_
-regLinearSta.coef_
-
+regLinearSta.fit(dfStabilisation[['mean_moisture-percent','mean_temperature','TAfterArrosage','ArrosageHist','index']],dfStabilisation.moistureAdd)
 
 #Creation de l'algorithme pour predire l'arrosage
 # Avec une simple regression :
 #[res, bestaro] = t.prediction(reg, 22,26,23,22)
 
-# Avec la separation en 3 de la journee:
-[res, bestaro] = t.prediction3(regLinearAro, regLinearEva, regLinearSta, limite, 21,26 ,23,23)
+# we collect the temperature and the moisture
+print("Vous désirez prédire la quantité d'eau que vous devrez arroser chaque jour pour atteindre un certain niveau d'humidité ? Notre algorithme est fait pour ça ! \nPour y arriver, nous avons besoin de quelques paramètres.\n")
+nDay = int(input("Sur combien de jour ? :"))
+start = float(input("\nHumidité actuel ? :"))
+end = float(input("Humidité souhaité ? :"))
 
-print("Meilleure arrosage : ", bestaro)
-print("Evolution de l'humidite : ", res)
-plt.plot(res)
+# Avec la separation en 3 de la journee:
+result = [start]
+arrosage = []
+for d in range(nDay):
+    print("")
+    print(" Pour le jour numero :", d+1)
+    highTemp = float(input("temperature journée ? :"))
+    lowTemp = float(input("temperature nuit ? :"))
+    [res, bestaro] = t.prediction3(regLinearAro, regLinearEva, regLinearSta, limite, result[int(0+48*d)],highTemp ,lowTemp,end,int(40+d))
+    result = [*result, *res]
+    arrosage.append(bestaro)
+
+print("\n Meilleure arrosage : ", arrosage)
+
+plt.plot(result)
 plt.ylabel('moisture percent')
 plt.xlabel('iteration')
 plt.show()
