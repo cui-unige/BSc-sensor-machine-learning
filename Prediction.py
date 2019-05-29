@@ -52,23 +52,24 @@ regLinearSta.fit(dfStabilisation[['mean_moisture-percent','mean_temperature','TA
 
 # we collect the temperature and the moisture
 print("Vous désirez prédire la quantité d'eau que vous devrez arroser chaque jour pour atteindre un certain niveau d'humidité ? Notre algorithme est fait pour ça ! \nPour y arriver, nous avons besoin de quelques paramètres.\n")
-nDay = int(input("Sur combien de jour ? :"))
-start = float(input("\nHumidité actuel ? :"))
-end = float(input("Humidité souhaité ? :"))
+nDay = int(input("Sur combien de jour ? : "))
+start = float(input("\nHumidité actuel ? : "))
+end = float(input("Humidité souhaité ? : "))
 
 # Avec la separation en 3 de la journee:
 result = [start]
 arrosage = []
 for d in range(nDay):
     print("")
-    print(" Pour le jour numero :", d+1)
-    highTemp = float(input("temperature journée ? :"))
-    lowTemp = float(input("temperature nuit ? :"))
+    print(" Pour le jour numero : ", d+1)
+    highTemp = float(input("temperature journée ? : "))
+    lowTemp = float(input("temperature nuit ? : "))
     [res, bestaro] = t.prediction3(regLinearAro, regLinearEva, regLinearSta, limite, result[int(0+48*d)],highTemp ,lowTemp,end,int(40+d))
     result = [*result, *res]
     arrosage.append(bestaro)
 
 print("\n Meilleure arrosage : ", arrosage)
+print("Himditité final prédit : ", result[int(48*d)])
 
 plt.plot(result)
 plt.ylabel('moisture percent')
