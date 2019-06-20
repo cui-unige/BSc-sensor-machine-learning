@@ -13,25 +13,34 @@ import sys
 # start = float(sys.argv[1])
 # end = float(sys.argv[2])
 
+
+def BestWater(nDays, startMoist, purposeMoist, listHigh, listlow, regLinearAro, regLinearEva, regLinearSta):
+    result = [startMoist]
+    arrosage = []
+
+    for d in range(nDays):
+        purposeDaily = result[-1] + (purposeMoist - result[-1])/(nDays-d)
+        [res, bestaro] = t.prediction3(regLinearAro, regLinearEva, regLinearSta, 240, result[int(0+48*d)],listHigh[int(d)], listlow[int(d)],purposeDaily,int(40+d))
+        result = [*result, *res]
+        arrosage.append(bestaro)
+    return result, arrosage
+
 t= Traitement()
 
-
-df = t.preparation('DataDemeterAll.csv', 6)
+print("Import de la database")
+df = t.preparation('DataDemeter.csv', 6)
 nligne = df.shape[0]
 nColumn = df.shape[1]
 
-#[df, dataTest] = t.partitionTest(df,7)
-#print(df.shape[0])
-#data test
 
 
 #Separation of the data in 3 parts
-limite = 270
+limite = 240
 dfArrosage = df.loc[df['TAfterArrosage'] == 0]
 tmp = df.loc[df['TAfterArrosage'] > 0]
 dfStabilisation = df.loc[df['TAfterArrosage'] > limite]
 dfEvaporation = tmp.loc[df['TAfterArrosage'] <= limite]
-
+print("Calcul de la regression ...")
 #Linear Regression
 reg = linear_model.LinearRegression()
 reg.fit(df[['mean_moisture-percent','mean_temperature','Arrosage']],df.moistureAdd)
@@ -51,27 +60,28 @@ regLinearSta.fit(dfStabilisation[['mean_moisture-percent','mean_temperature','TA
 #[res, bestaro] = t.prediction(reg, 22,26,23,22)
 
 # we collect the temperature and the moisture
-print("Vous désirez prédire la quantité d'eau que vous devrez arroser chaque jour pour atteindre un certain niveau d'humidité ? Notre algorithme est fait pour ça ! \nPour y arriver, nous avons besoin de quelques paramètres.\n")
+print("\nVous désirez prédire la quantité d'eau que vous devrez arroser chaque jour pour atteindre un certain niveau d'humidité ? Notre algorithme est fait pour ça ! \nPour y arriver, nous avons besoin de quelques paramètres.\n")
 nDay = int(input("Sur combien de jour ? : "))
 start = float(input("\nHumidité actuel ? : "))
 end = float(input("Humidité souhaité ? : "))
 
+listHighTemp = np.zeros(nDay)
+listLowTemp = np.zeros(nDay)
 # Avec la separation en 3 de la journee:
-result = [start]
-arrosage = []
 for d in range(nDay):
     print("")
     print(" Pour le jour numero : ", d+1)
-    highTemp = float(input("temperature journée ? : "))
-    lowTemp = float(input("temperature nuit ? : "))
-    [res, bestaro] = t.prediction3(regLinearAro, regLinearEva, regLinearSta, limite, result[int(0+48*d)],highTemp ,lowTemp,end,int(40+d))
-    result = [*result, *res]
-    arrosage.append(bestaro)
+    listHighTemp[d] = float(input("temperature journée ? : "))
+    listLowTemp[d] = float(input("temperature nuit ? : "))
 
+
+[result, arrosage] = BestWater(nDay, start, end, listHighTemp, listLowTemp, regLinearAro, regLinearEva, regLinearSta)
 print("\n Meilleure arrosage : ", arrosage)
-print("Himditité final prédit : ", result[int(48*d)])
+print("Himditité final prédit : ", result[-1])
 
 plt.plot(result)
 plt.ylabel('moisture percent')
 plt.xlabel('iteration')
+plt.grid(True)
+plt.title('Prediction de l humidité avec l arrosage proposé')
 plt.show()
