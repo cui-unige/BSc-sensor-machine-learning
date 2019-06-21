@@ -82,7 +82,7 @@ class Traitement(object):
         df.iloc[:,5] = 0
         tmp = 0
         for i in range(nligne):
-            if i in df.loc[df['moistureAdd'] >= 3].index:
+            if i in df.loc[df['moistureAdd'] >= 1].index:
                 if pd.to_datetime(df.iloc[i,0]) < datetime.datetime(2019, 3, 28,0,0,0):
                     df.iloc[int(i),5] = aro[0]
                 elif pd.to_datetime(df.iloc[i,0]) < datetime.datetime(2019, 4, 18,0,0,0):
@@ -207,21 +207,39 @@ class Traitement(object):
         #Create other columns
         df = self.ajoutData(df)
         print("Preparation des donnees ...")
-        df = self.arrosageHist(df,1)
+        pot = 1
+        if (name == "DataCeres.csv"):
+            pot = 2
+        df = self.arrosageHist(df,pot)
         df = self.addDay(df,init)
-        # Delete the day with problem
-        df.drop(df.index[df['index'] == 76], axis = 0, inplace = True)
-        df.drop(df.index[df['index'] == 75], axis = 0, inplace = True)
-        df.drop(df.index[df['index'] == 15], axis = 0, inplace = True)
-        df.drop(df.index[df['index'] == 102], axis = 0, inplace = True)
-        df.drop(df.index[df['index'] == 96], axis = 0, inplace = True)
-        df.drop(df.index[df['index'] == 97], axis = 0, inplace = True)
-        df.drop(df.index[df['index'] == 98], axis = 0, inplace = True)
-        df.drop(df.index[df['index'] == 41], axis = 0, inplace = True)
-        df = self.eliminateNaNValue(df,init)
 
         #Delete the data that are not inside a loop of one day
         df.drop(df.index[range(0,init)],axis = 0,inplace = True)
+
+        # Delete the day with problem
+        if (name == "DataDemeter.csv"):
+            df.drop(df.index[df['index'] == 76], axis = 0, inplace = True)
+            df.drop(df.index[df['index'] == 75], axis = 0, inplace = True)
+            df.drop(df.index[df['index'] == 15], axis = 0, inplace = True)
+            df.drop(df.index[df['index'] == 102], axis = 0, inplace = True)
+            df.drop(df.index[df['index'] == 96], axis = 0, inplace = True)
+            df.drop(df.index[df['index'] == 97], axis = 0, inplace = True)
+            df.drop(df.index[df['index'] == 98], axis = 0, inplace = True)
+            df.drop(df.index[df['index'] == 41], axis = 0, inplace = True)
+        if (name == "DataCeres.csv"):
+            df.drop(df.index[df['index'] == 1], axis = 0, inplace = True)
+            df.drop(df.index[df['index'] == 2], axis = 0, inplace = True)
+            df.drop(df.index[df['index'] == 3], axis = 0, inplace = True)
+            df.drop(df.index[df['index'] < 51], axis = 0, inplace = True) #Avant 5
+            df.drop(df.index[df['index'] == 74], axis = 0, inplace = True)
+            df.drop(df.index[df['index'] == 89], axis = 0, inplace = True)
+            df.drop(df.index[df['TAfterArrosage'] > 1410], axis = 0, inplace = True)
+
+
+
+
+        df = self.eliminateNaNValue(df,init)
+
         return df
 
     # Separate train data and test data. Df is the dataFrame to separate and
