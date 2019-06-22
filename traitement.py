@@ -44,35 +44,13 @@ class Traitement(object):
             df.iloc[i,position] = (i-init)//48 + 1
         return df
 
-        #This function add the information about the quantity that was used for watering and since how long the has been watering
-    # def arrosage(self,df):
-    #     df['Arrosage'] = df.index #This quantity is not zero when we watering. So it's always at 10.30 or 11.30
-    #     df['TAfterArrosage'] = df.index
-    #
-    #     j = 0
-    #     nligne = df.shape[0]
-    #     df.iloc[:,5] = 0
-    #     for i in range(nligne):
-    #         if i in df.loc[df['moistureAdd'] >= 3].index:
-    #             if pd.to_datetime(df.iloc[i,0]) < datetime.datetime(2019, 3, 28,0,0,0):
-    #                 df.iloc[int(i),5] = 10
-    #             elif pd.to_datetime(df.iloc[i,0]) < datetime.datetime(2019, 4, 18,0,0,0):
-    #                 df.iloc[int(i),5] = 15
-    #             elif pd.to_datetime(df.iloc[i,0]) < datetime.datetime(2019, 5, 3,0,0,0):
-    #                 df.iloc[int(i),5] = 30
-    #             else:
-    #                 df.iloc[int(i),5] = 20
-    #             j = 0
-    #         df.iloc[int(i),6] = j*30
-    #         j = j + 1
-    #     return df
 
     #This function add the information about the quantity that was used for watering and since how long the has been watering
     def arrosageHist(self,df,pot):
         df['Arrosage'] = df.index #This quantity is not zero when we watering. So it's always at 10.30 or 11.30
         df['TAfterArrosage'] = df.index #Time quantity
         df['ArrosageHist'] = df.index #how much have been water at the last watering
-        aro = [0,0,0,0,0]
+        aro = [0,0,0,0,0,0]
         if pot == 1:
             aro = [10,20,40,35,45,15]
         elif pot == 2:
@@ -115,19 +93,6 @@ class Traitement(object):
                 i = i + 48
         return df
 
-    # def pure(self,df):
-    #     dfPure = df.loc[df['TAfterArrosage'] <= 30 ]
-    #     nligne = df.shape[0]
-    #     i=0
-    #     j= 47
-    #     while(j < nligne):
-    #         dfPure.iloc[i,2] = np.mean(df.iloc[range(j-47,j-24),2].values)
-    #         dfPure.iloc[i+1,2] = np.mean(df.iloc[range(j-24,j),2].values)
-    #         if (j + 48 <=nligne):
-    #             dfPure.iloc[i+1,3] = dfPure.iloc[i+2,1]-dfPure.iloc[i+1,1]
-    #         i = i +2
-    #         j = j + 48
-    #     return dfPure
 
     # make the prediction of the watering quantity for a single regression in one day
     # reg = single regression, start is the starting moisture, purpose is the moisture wanted, hightemp and lowtemp are list of temperature during the day
@@ -158,15 +123,15 @@ class Traitement(object):
     # hightemp and lowtemp are list of temperature during the day
     # day is the number of day that must be predict
     # limite is the nomber of minute for the separation between the phase of evaporation and stailization
-    def prediction3(self,regAro, regEva, regSta,limite,start,highTemp,lowTemp,purpose,day):
+    def prediction3(self,regAro, regEva, regSta,limite,start,highTemp,lowTemp,purpose,iteration):
         val = [0,5,10,15,20,25,30,35,40,45,50]
         resBest = 1000
         evalBest = []
         aroBest = 0
         for el in val:
-            res = self.calcul(el,regAro, regEva, regSta,limite,start,highTemp,lowTemp,purpose,day)
-            if abs(resBest-purpose) > abs(res[48]-purpose):
-                resBest = res[48]
+            res = self.calcul(el,regAro, regEva, regSta,limite,start,highTemp,lowTemp,purpose,iteration)
+            if abs(resBest-purpose) > abs(res[-1]-purpose):
+                resBest = res[-1]
                 evalBest = res
                 aroBest = el
 
@@ -179,26 +144,26 @@ class Traitement(object):
     # hightemp and lowtemp are list of temperature during the day
     # day is the number of day that must be predict
     # limite is the nomber of minute for the separation between the phase of evaporation and stailization
-    def calcul(self,aro,regAro,regEva,regSta,limite,start,highTemp,lowTemp,purpose,day):
-        res = np.zeros(49)
+    def calcul(self,aro,regAro,regEva,regSta,limite,start,highTemp,lowTemp,purpose,iteration):
+        res = np.zeros(iteration+1)
         res[0] = start
         if (aro != 0):
-            res[1] = res[0] + regAro.predict([[res[0],aro,day]])[0]
+            res[1] = res[0] + regAro.predict([[res[0],aro]])[0]
             reg = regEva
-            for i in range(2,49):
+            for i in range(2,iteration+1):
                 if i == limite//30:
                     reg = regSta
                 if i <= 24:
-                    res[i] = res[i-1] + reg.predict([[res[i-1],highTemp,i*30,aro,day]])[0]
+                    res[i] = res[i-1] + reg.predict([[res[i-1],highTemp,i*30,aro]])[0]
                 else:
-                    res[i] = res[i-1] + reg.predict([[res[i-1],lowTemp,i*30,aro,day]])[0]
+                    res[i] = res[i-1] + reg.predict([[res[i-1],lowTemp,i*30,aro]])[0]
         else:
-            for i in range(1,49):
+            for i in range(1,iteration+1):
                 if i <= 24:
-                    res[i] = res[i-1] + regSta.predict([[res[i-1],highTemp,i*30,aro,day]])[0]
+                    res[i] = res[i-1] + regSta.predict([[res[i-1],highTemp,i*30,aro]])[0]
                 else:
-                    res[i] = res[i-1] + regSta.predict([[res[i-1],lowTemp,i*30,aro,day]])[0]
-        return res
+                    res[i] = res[i-1] + regSta.predict([[res[i-1],lowTemp,i*30,aro]])[0]
+        return res[range(1,iteration+1)]
 
  # do the preparation of the day for the calcul. Read the file. Add variation of moisture and temperature
  # Add the time after watering and the watering quantity. Eliminate NaN value

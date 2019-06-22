@@ -17,16 +17,32 @@ import sys
 def BestWater(nDays, startMoist, purposeMoist, listHigh, listlow, regLinearAro, regLinearEva, regLinearSta):
     result = [startMoist]
     arrosage = []
+    iter = 48
 
     for d in range(nDays):
         purposeDaily = result[-1] + (purposeMoist - result[-1])/(nDays-d)
-        [res, bestaro] = t.prediction3(regLinearAro, regLinearEva, regLinearSta, 240, result[int(0+48*d)],listHigh[int(d)], listlow[int(d)],purposeDaily,int(40+d))
+        [res, bestaro] = t.prediction3(regLinearAro, regLinearEva, regLinearSta, 240, result[int(0+iter*d)],listHigh[int(d)], listlow[int(d)],purposeDaily, iter)
         result = [*result, *res]
         arrosage.append(bestaro)
+    if (result[-1] < (purposeMoist-1)):
+        print("Pour atteindre cette humidité, il faudra arrosager 2 fois par jour. ")
+        result = [startMoist]
+        arrosage = []
+        iter = 24
+        for d in range(nDays*2):
+            temp = listlow
+            if (d%2 == 0):
+                temp = listHigh
+            purposeDaily = result[-1] + (purposeMoist - result[-1])/(nDays*2-d)
+            [res, bestaro] = t.prediction3(regLinearAro, regLinearEva, regLinearSta, 240, result[int(0+iter*d)],temp[int(d//2)], temp[int(d//2)],purposeDaily, iter)
+            result = [*result, *res]
+            arrosage.append(bestaro)
     return result, arrosage
 
-t= Traitement()
 
+
+#Preparation of the data
+t= Traitement()
 print("Import de la database")
 df = t.preparation('DataDemeter.csv', 6)
 nligne = df.shape[0]
@@ -47,13 +63,13 @@ reg.fit(df[['mean_moisture-percent','mean_temperature','Arrosage']],df.moistureA
 
 # Regression on the 3 parts
 regLinearAro = linear_model.LinearRegression()
-regLinearAro.fit(dfArrosage[['mean_moisture-percent','Arrosage','index']],dfArrosage.moistureAdd)
+regLinearAro.fit(dfArrosage[['mean_moisture-percent','Arrosage']],dfArrosage.moistureAdd)
 
 regLinearEva = linear_model.LinearRegression()
-regLinearEva.fit(dfEvaporation[['mean_moisture-percent','mean_temperature','TAfterArrosage','ArrosageHist','index']],dfEvaporation.moistureAdd)
+regLinearEva.fit(dfEvaporation[['mean_moisture-percent','mean_temperature','TAfterArrosage','ArrosageHist']],dfEvaporation.moistureAdd)
 
 regLinearSta = linear_model.LinearRegression()
-regLinearSta.fit(dfStabilisation[['mean_moisture-percent','mean_temperature','TAfterArrosage','ArrosageHist','index']],dfStabilisation.moistureAdd)
+regLinearSta.fit(dfStabilisation[['mean_moisture-percent','mean_temperature','TAfterArrosage','ArrosageHist']],dfStabilisation.moistureAdd)
 
 #Creation de l'algorithme pour predire l'arrosage
 # Avec une simple regression :
