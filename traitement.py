@@ -9,7 +9,14 @@ import datetime
 import random
 
 
+# Adrien Chabert
 
+# The purpose of this python code is to create some function that will be use to initialize some dataframe with some information.
+# There is also some function that will help to find the best watering.
+# This code is done for the fill "DataCeres.csv" and "DataDemeter.csv". If you want to use this code for other data file. There are
+# some changment to do (especially in the function preparation()).
+# Your data file must have : the first column is date,
+# the second column is mean_moisture and the third is mean_temperature
 
 
 class Traitement(object):
@@ -22,7 +29,6 @@ class Traitement(object):
         df['temperatureAdd'] = df.index
 
         # size
-        dt = 30
         nligne = df.shape[0]
         nColumn = df.shape[1]
         tmp = np.linspace(0,nligne-2,nligne-1,dtype=int)
@@ -45,12 +51,16 @@ class Traitement(object):
         return df
 
 
-    #This function add the information about the quantity that was used for watering and since how long the has been watering
+    #This function add the information about the quantity that was used for watering and the time since the last watering
+    # df is the dataframe. pot si the corresponding bac of the dataframe. 1 = demeter and 2 = ceres
     def arrosageHist(self,df,pot):
         df['Arrosage'] = df.index #This quantity is not zero when we watering. So it's always at 10.30 or 11.30
         df['TAfterArrosage'] = df.index #Time quantity
-        df['ArrosageHist'] = df.index #how much have been water at the last watering
+        df['ArrosageHist'] = df.index #how much have been watered at the last watering
         aro = [0,0,0,0,0,0]
+        if ((pot != 1) & (pot != 2)):
+            print("Ce bac est inconnu")
+            return df
         if pot == 1:
             aro = [10,20,40,35,45,15]
         elif pot == 2:
@@ -60,7 +70,9 @@ class Traitement(object):
         df.iloc[:,5] = 0
         tmp = 0
         for i in range(nligne):
+            # this condition help us to find when the watering have been done
             if i in df.loc[df['moistureAdd'] >= 1].index:
+                # The watering depend on the day it was done
                 if pd.to_datetime(df.iloc[i,0]) < datetime.datetime(2019, 3, 28,0,0,0):
                     df.iloc[int(i),5] = aro[0]
                 elif pd.to_datetime(df.iloc[i,0]) < datetime.datetime(2019, 4, 18,0,0,0):
@@ -77,12 +89,18 @@ class Traitement(object):
                 j = 0
                 tmp = df.iloc[int(i),5]
 
+            # add the information about "since how long it has been watered"
             df.iloc[int(i),6] = j*30
+            # add the information "What was the last watering"
             df.iloc[i,7] = tmp
             j = j + 1
         return df
 
-    # Eliminate the NaN value
+
+
+    # Eliminate the NaN value. There is Nan value when the raserberry pi was not working
+    # df is the dataframe. i is "what is the number of ligne of the first watering"
+    # the first watering correspond to start of a cycle
     def eliminateNaNValue(self,df,i):
         nligne = df.shape[0]
         while(i+48 < nligne):
@@ -94,34 +112,12 @@ class Traitement(object):
         return df
 
 
-    # make the prediction of the watering quantity for a single regression in one day
-    # reg = single regression, start is the starting moisture, purpose is the moisture wanted, hightemp and lowtemp are list of temperature during the day
-    def prediction(self,reg,start,highTemp,lowTemp,purpose):
-        val = [5,10,15,20,25,30,35,40,45,50]
-        resBest = 1000
-        evalBest = []
-        aroBest = 0
-        for el in val:
-            res = np.zeros(49)
-            res[0] = start
-            res[1] = res[0] + reg.predict([[res[0],highTemp,el]])[0]
-            for i in range(2,49):
-                if i <= 24:
-                    res[i] = res[i-1] + reg.predict([[res[i-1],highTemp,0]])[0]
-                else:
-                    res[i] = res[i-1] + reg.predict([[res[i-1],lowTemp,0]])[0]
-            if abs(resBest-purpose) > abs(res[48]-purpose):
-                resBest = res[48]
-                evalBest = res
-                aroBest = el
-            print(el, res[48])
-        return evalBest, aroBest
 
     # find the best prediction of the watering quantity with a triple regressions in one day
     # regAro, redEva and regSta are the regression
     # start is the starting moisture, purpose is the moisture wanted,
     # hightemp and lowtemp are list of temperature during the day
-    # day is the number of day that must be predict
+    # iteration is the number of period to predict. One period is 30 minutes
     # limite is the nomber of minute for the separation between the phase of evaporation and stailization
     def prediction3(self,regAro, regEva, regSta,limite,start,highTemp,lowTemp,purpose,iteration):
         val = [0,5,10,15,20,25,30,35,40,45,50]
@@ -129,6 +125,7 @@ class Traitement(object):
         evalBest = []
         aroBest = 0
         for el in val:
+            # calcul the prediction
             res = self.calcul(el,regAro, regEva, regSta,limite,start,highTemp,lowTemp,purpose,iteration)
             if abs(resBest-purpose) > abs(res[-1]-purpose):
                 resBest = res[-1]
@@ -138,11 +135,13 @@ class Traitement(object):
             #print(el, res[48])
         return evalBest, aroBest
 
+
+
     # Calcul the moisture on one day
     # regAro, redEva and regSta are the regression
     # start is the starting moisture, purpose is the moisture wanted,
     # hightemp and lowtemp are list of temperature during the day
-    # day is the number of day that must be predict
+    # iteration is the number of period to predict. One period is 30 minutes
     # limite is the nomber of minute for the separation between the phase of evaporation and stailization
     def calcul(self,aro,regAro,regEva,regSta,limite,start,highTemp,lowTemp,purpose,iteration):
         res = np.zeros(iteration+1)
@@ -157,6 +156,7 @@ class Traitement(object):
                     res[i] = res[i-1] + reg.predict([[res[i-1],highTemp,i*30,aro]])[0]
                 else:
                     res[i] = res[i-1] + reg.predict([[res[i-1],lowTemp,i*30,aro]])[0]
+        #if there is no watering
         else:
             for i in range(1,iteration+1):
                 if i <= 24:
@@ -165,16 +165,19 @@ class Traitement(object):
                     res[i] = res[i-1] + regSta.predict([[res[i-1],lowTemp,i*30,aro]])[0]
         return res[range(1,iteration+1)]
 
+
+
  # do the preparation of the day for the calcul. Read the file. Add variation of moisture and temperature
  # Add the time after watering and the watering quantity. Eliminate NaN value
+ # init is the ligne where there is the first watering. It's the start of "day"
     def preparation(self, name, init):
         df = pd.read_csv(name)
         #Create other columns
         df = self.ajoutData(df)
         print("Preparation des donnees ...")
-        pot = 1
+        pot = 1 # pot = 1 is Demeter
         if (name == "DataCeres.csv"):
-            pot = 2
+            pot = 2 # pot = 2 is Ceres
         df = self.arrosageHist(df,pot)
         df = self.addDay(df,init)
 
@@ -182,6 +185,7 @@ class Traitement(object):
         df.drop(df.index[range(0,init)],axis = 0,inplace = True)
 
         # Delete the day with problem
+        # This part is really depending on the data. We eliminate value that seem to be wrong
         if (name == "DataDemeter.csv"):
             df.drop(df.index[df['index'] == 76], axis = 0, inplace = True)
             df.drop(df.index[df['index'] == 75], axis = 0, inplace = True)
@@ -200,12 +204,11 @@ class Traitement(object):
             df.drop(df.index[df['index'] == 89], axis = 0, inplace = True)
             df.drop(df.index[df['TAfterArrosage'] > 1410], axis = 0, inplace = True)
 
-
-
-
+        #Eliminate NaN value.
         df = self.eliminateNaNValue(df,init)
-
         return df
+
+
 
     # Separate train data and test data. Df is the dataFrame to separate and
     # njour is the number of day of test data.
